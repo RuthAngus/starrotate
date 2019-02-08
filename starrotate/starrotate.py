@@ -3,7 +3,7 @@ A script for measuring the rotation periods of a set of stars.
 """
 
 import numpy as np
-import rotation_tools as ro
+import .rotation_tools as ro
 import exoplanet as xo
 import pymc3 as pm
 import theano.tensor as tt
