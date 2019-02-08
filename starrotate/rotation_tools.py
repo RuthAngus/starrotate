@@ -19,12 +19,10 @@ plotpar = {'axes.labelsize': 25,
 plt.rcParams.update(plotpar)
 
 
-def download_light_curves(KID):
-    star = client.star(KID)
+def download_light_curves(KID, lcpath):
+    star = client.star(str(int(KID)).zfill(9))
     star.get_light_curves(fetch=True, short_cadence=False);
-    time, flux, flux_err = load_kepler_data(
-        "/Users/ruthangus/.kplr/data/lightcurves/{}".format(str(KID).
-                                                            zfill(9)))
+    time, flux, flux_err = load_kepler_data(lcpath)
     return time, flux, flux_err
 
 
@@ -178,7 +176,6 @@ def simple_acf(x_gaps, y_gaps, interval=0.02043365):
         m = acf_smooth == max(acf_smooth[peaks])
         highest_peak = acf_smooth[m][0]
         period = lags[m][0]
-        print(period)
     else:
         period = 0.
 

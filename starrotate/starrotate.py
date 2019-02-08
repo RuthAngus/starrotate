@@ -3,7 +3,7 @@ A script for measuring the rotation periods of a set of stars.
 """
 
 import numpy as np
-import .rotation_tools as ro
+from .rotation_tools import simple_acf
 import exoplanet as xo
 import pymc3 as pm
 import theano.tensor as tt
@@ -135,11 +135,10 @@ class RotationModel(object):
             self.fold_plot(peak["period"], "LS")
 
         self.ls_period = peak["period"]
-        print("LS period = ", self.ls_period)
         return peak["period"]
 
     def ACF_rotation(self):
-        lags, acf, acf_period = ro.simple_acf(self.time, self.flux)
+        lags, acf, acf_period = simple_acf(self.time, self.flux)
 
         if self.plot:
             plt.figure(figsize=(16, 9))
@@ -212,8 +211,6 @@ class RotationModel(object):
                 plt.ylabel("$\mathrm{Relative~flux}$")
                 plt.legend(fontsize=20)
 
-            print("Maximum likelihood GP period = ", map_soln["period"])
-
             # Sample from the posterior
             np.random.seed(42)
             sampler = xo.PyMC3Sampler()
@@ -248,10 +245,6 @@ class RotationModel(object):
                 # Plot the folded light curve
                 self.fold_plot(gp_period, method="GP")
 
-        print("GP period = {0:.2f} + {1:.2f} - {2:.2f}".format(gp_period,
-                                                               errp, errm))
-        print("Q factor = {0:.2f} + {1:.2f} - {2:.2f}".format(logQ, Qerrp,
-                                                              Qerrm))
         self.gp_period = gp_period
         self.errp, self.errm = errp, errm
         self.logQ = logQ
