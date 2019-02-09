@@ -144,6 +144,12 @@ class RotationModel(object):
             # Plot the light curve folded on this period.
             self.fold_plot(peak["period"], "LS")
 
+        # Save the periodogram data.
+        pgram = pd.DataFrame(dict({"freq": freq, "power": power, "period":
+                                   peak["period"]}))
+        pgram.to_csv("{0}/{1}_pgram_data.csv".format(self.plot_path,
+                                                     self.starname))
+
         self.ls_period = peak["period"]
         return peak["period"]
 
@@ -165,6 +171,12 @@ class RotationModel(object):
 
             # Plot the folded light curve
             self.fold_plot(acf_period, method="ACF")
+
+        # Save the ACF data.
+        ACF = pd.DataFrame(dict({"lags": lags, "acf": acf, "period":
+                                 acf_period}))
+        ACF.to_csv("{0}/{1}_acf_data.csv".format(self.plot_path,
+                                                 self.starname))
 
         self.acf_period = acf_period
         return acf_period
@@ -238,7 +250,8 @@ class RotationModel(object):
 
             # Save samples
             samples = pm.trace_to_dataframe(trace)
-            samples.to_hdf("{0}/{1}_samples.h5".format(self.plot_path, self.starname),
+            samples.to_hdf("{0}/{1}_samples.h5".format(self.plot_path,
+                                                       self.starname),
                            "trace")
 
             period_samples = trace["period"]
