@@ -10,7 +10,6 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 import scipy.interpolate as spi
 import kplr
-client = kplr.API()
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
@@ -20,6 +19,7 @@ plt.rcParams.update(plotpar)
 
 
 def download_light_curves(KID, lcpath):
+    client = kplr.API(data_root=None)
     star = client.star(str(int(KID)).zfill(9))
     star.get_light_curves(fetch=True, short_cadence=False);
     time, flux, flux_err = load_kepler_data(lcpath)
