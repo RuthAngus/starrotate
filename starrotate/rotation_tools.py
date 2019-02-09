@@ -18,8 +18,8 @@ plotpar = {'axes.labelsize': 25,
 plt.rcParams.update(plotpar)
 
 
-def download_light_curves(KID, lcpath):
-    client = kplr.API(data_root=None)
+def download_light_curves(KID, download_path, lcpath):
+    client = kplr.API(data_root=download_path)
     star = client.star(str(int(KID)).zfill(9))
     star.get_light_curves(fetch=True, short_cadence=False);
     time, flux, flux_err = load_kepler_data(lcpath)
