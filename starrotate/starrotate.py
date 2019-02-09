@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
-           'ytick.labelsize': 20,
-           'text.usetex': True}
+           'ytick.labelsize': 20}
+           #'text.usetex': True}
 plt.rcParams.update(plotpar)
 
 
@@ -35,8 +35,10 @@ class RotationModel(object):
         # Plot the light curve
         plt.figure(figsize=(20, 5))
         plt.plot(self.raw_time, self.raw_flux, "k.", ms=.5);
-        plt.xlabel("$\mathrm{Time~[days]}$")
-        plt.ylabel("$\mathrm{Relative~Flux}$");
+        # plt.xlabel("$\mathrm{Time~[days]}$")
+        # plt.ylabel("$\mathrm{Relative~Flux}$");
+        plt.xlabel("Time [days]")
+        plt.ylabel("Relative Flux");
         plt.subplots_adjust(bottom=.15)
         plt.savefig("{0}/{1}_full_lightcurve".format(self.plot_path,
                                                      self.starname))
@@ -52,8 +54,10 @@ class RotationModel(object):
             if self.plot:
                 plt.figure(figsize=(20, 5))
                 plt.plot(time, flux, "k.", ms=.5);
-                plt.xlabel("$\mathrm{Time~[days]}$")
-                plt.ylabel("$\mathrm{Relative~Flux}$");
+                # plt.xlabel("$\mathrm{Time~[days]}$")
+                # plt.ylabel("$\mathrm{Relative~Flux}$");
+                plt.xlabel("Time [days]")
+                plt.ylabel("Relative Flux");
                 plt.subplots_adjust(bottom=.15)
                 plt.savefig("{0}/{1}_masked_lightcurve".format(self.plot_path,
                                                                self.starname))
@@ -65,8 +69,10 @@ class RotationModel(object):
         if self.plot:
             plt.figure(figsize=(20, 5))
             plt.plot(self.time, self.flux, "k.", ms=2);
-            plt.xlabel("$\mathrm{Time~[days]}$")
-            plt.ylabel("$\mathrm{Relative~Flux}$");
+            # plt.xlabel("$\mathrm{Time~[days]}$")
+            # plt.ylabel("$\mathrm{Relative~Flux}$");
+            plt.xlabel("Time [days]")
+            plt.ylabel("Relative Flux");
             plt.xlim(self.time[0], self.time[0] + zoom)
             plt.subplots_adjust(bottom=.15)
             plt.savefig("{0}/{1}_zoom".format(self.plot_path, self.starname))
@@ -94,8 +100,10 @@ class RotationModel(object):
         plt.figure(figsize=(12, 9))
         plt.plot(x_fold, self.flux, ".k", ms=1);
         plt.ylim(-np.std(self.flux)*3, np.std(self.flux)*3)
-        plt.xlabel("$\mathrm{Phase}$")
-        plt.ylabel("$\mathrm{Normalized~Flux}$")
+        # plt.xlabel("$\mathrm{Phase}$")
+        # plt.ylabel("$\mathrm{Normalized~Flux}$")
+        plt.xlabel("Phase")
+        plt.ylabel("Normalized Flux")
 
         bins = np.linspace(0, 1, 20)
         denom, _ = np.histogram(x_fold, bins)
@@ -125,8 +133,10 @@ class RotationModel(object):
                         zorder=1)
             plt.xlim((-np.log10(freq)).min(), (-np.log10(freq)).max())
             plt.yticks([])
-            plt.xlabel("$\log_{10}(\mathrm{Period [days]}$)")
-            plt.ylabel("$\mathrm{Power}$");
+            # plt.xlabel("$\log_{10}(\mathrm{Period [days]}$)")
+            # plt.ylabel("$\mathrm{Power}$");
+            plt.xlabel("log10(Period [days])")
+            plt.ylabel("Power");
             plt.subplots_adjust(left=.15, bottom=.15)
             plt.savefig("{0}/{1}_pgram".format(self.plot_path, self.starname))
             plt.close()
@@ -144,8 +154,10 @@ class RotationModel(object):
             plt.figure(figsize=(16, 9))
             plt.plot(lags, acf, "k")
             plt.axvline(acf_period, color="C1")
-            plt.xlabel("$\mathrm{Period~[days]}$")
-            plt.ylabel("$\mathrm{Correlation}$")
+            # plt.xlabel("$\mathrm{Period~[days]}$")
+            # plt.ylabel("$\mathrm{Correlation}$")
+            plt.xlabel("Period [days]")
+            plt.ylabel("Correlation")
             plt.xlim(0, 20)
             plt.subplots_adjust(left=.15, bottom=.15)
             plt.savefig("{0}/{1}_acf".format(self.plot_path, self.starname))
@@ -204,11 +216,16 @@ class RotationModel(object):
             # Plot the MAP fit.
             if self.plot:
                 plt.figure(figsize=(20, 5))
-                plt.plot(x, y, "k.", ms=.5, label="$\mathrm{data}$")
+                # plt.plot(x, y, "k.", ms=.5, label="$\mathrm{data}$")
+                # plt.plot(x, map_soln["pred"], color="C1", lw=3,
+                #         label="$\mathrm{model}$")
+                # plt.xlabel("$\mathrm{Time~[days]}$")
+                # plt.ylabel("$\mathrm{Relative~flux}$")
+                plt.plot(x, y, "k.", ms=.5, label="data")
                 plt.plot(x, map_soln["pred"], color="C1", lw=3,
-                        label="$\mathrm{model}$")
-                plt.xlabel("$\mathrm{Time~[days]}$")
-                plt.ylabel("$\mathrm{Relative~flux}$")
+                        label="model")
+                plt.xlabel("Time [days]")
+                plt.ylabel("Relative flux")
                 plt.legend(fontsize=20)
 
             # Sample from the posterior
@@ -236,8 +253,10 @@ class RotationModel(object):
                 plt.hist(period_samples, 30, histtype="step", color="k")
                 plt.axvline(gp_period)
                 plt.yticks([])
-                plt.xlabel("$\mathrm{Rotation~period~[days]}$")
-                plt.ylabel("$\mathrm{Posterior~density}$");
+                # plt.xlabel("$\mathrm{Rotation~period~[days]}$")
+                # plt.ylabel("$\mathrm{Posterior~density}$");
+                plt.xlabel("Rotation period [days]")
+                plt.ylabel("Posterior density");
                 plt.axvline(lower, ls="--", color="C1");
                 plt.axvline(upper, ls="--", color="C1");
                 plt.xlim(0, 50);
