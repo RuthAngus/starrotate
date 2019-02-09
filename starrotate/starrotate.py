@@ -208,7 +208,7 @@ class RotationModel(object):
             pm.Potential("loglike", gp.log_likelihood(y - mean))
 
             # Compute the mean model prediction for plotting purposes
-            pm.Deterministic("pred", gp.predict())
+            # pm.Deterministic("pred", gp.predict())
 
             # Optimize to find the maximum a posteriori parameters
             map_soln = pm.find_MAP(start=model.test_point)
@@ -235,6 +235,11 @@ class RotationModel(object):
                 sampler.tune(tune=2000, start=map_soln,
                             step_kwargs=dict(target_accept=0.9))
                 trace = sampler.sample(draws=2000)
+
+            # Save samples
+            samples = pm.trace_to_dataframe(trace)
+            samples.to_hdf("{0}/{1}_samples.h5".format(self.plot_path, self.starname),
+                           "trace")
 
             period_samples = trace["period"]
             gp_period = np.median(period_samples)
