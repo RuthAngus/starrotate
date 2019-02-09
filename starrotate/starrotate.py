@@ -78,6 +78,11 @@ class RotationModel(object):
             plt.savefig("{0}/{1}_zoom".format(self.plot_path, self.starname))
             plt.close()
 
+        # Save the processed light curve data.
+        lc = pd.DataFrame(dict({"time": self.time, "flux": self.flux,
+                                "flux_err", self.flux_err}))
+        lc.to_csv("{0}/{1}_lc_data.csv".format(self.plot_path, self.starname))
+
         # Calculate the rotation period.
         ls_period = self.LS_rotation()
         acf_period = self.ACF_rotation()
