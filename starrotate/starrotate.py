@@ -80,7 +80,7 @@ class RotationModel(object):
 
         # Save the processed light curve data.
         lc = pd.DataFrame(dict({"time": self.time, "flux": self.flux,
-                                "flux_err", self.flux_err}))
+                                "flux_err": self.flux_err}))
         lc.to_csv("{0}/{1}_lc_data.csv".format(self.plot_path, self.starname))
 
         # Calculate the rotation period.
