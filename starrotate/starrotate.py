@@ -8,6 +8,7 @@ import exoplanet as xo
 import pymc3 as pm
 import theano.tensor as tt
 import matplotlib.pyplot as plt
+import pandas as pd
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
@@ -231,19 +232,19 @@ class RotationModel(object):
             map_soln = pm.find_MAP(start=model.test_point)
 
             # Plot the MAP fit.
-            if self.plot:
-                plt.figure(figsize=(20, 5))
-                # plt.plot(x, y, "k.", ms=.5, label="$\mathrm{data}$")
-                # plt.plot(x, map_soln["pred"], color="C1", lw=3,
-                #         label="$\mathrm{model}$")
-                # plt.xlabel("$\mathrm{Time~[days]}$")
-                # plt.ylabel("$\mathrm{Relative~flux}$")
-                plt.plot(x, y, "k.", ms=.5, label="data")
-                plt.plot(x, map_soln["pred"], color="C1", lw=3,
-                        label="model")
-                plt.xlabel("Time [days]")
-                plt.ylabel("Relative flux")
-                plt.legend(fontsize=20)
+            # if self.plot:
+            #     plt.figure(figsize=(20, 5))
+            #     # plt.plot(x, y, "k.", ms=.5, label="$\mathrm{data}$")
+            #     # plt.plot(x, map_soln["pred"], color="C1", lw=3,
+            #     #         label="$\mathrm{model}$")
+            #     # plt.xlabel("$\mathrm{Time~[days]}$")
+            #     # plt.ylabel("$\mathrm{Relative~flux}$")
+            #     plt.plot(x, y, "k.", ms=.5, label="data")
+            #     plt.plot(x, map_soln["pred"], color="C1", lw=3,
+            #             label="model")
+            #     plt.xlabel("Time [days]")
+            #     plt.ylabel("Relative flux")
+            #     plt.legend(fontsize=20)
 
             # Sample from the posterior
             np.random.seed(42)
