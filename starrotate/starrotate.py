@@ -192,10 +192,14 @@ class RotationModel(object):
         self.acf_period = acf_period
         return acf_period
 
-    def GP_rotation(self, init_period):
+    def GP_rotation(self, init_period=None):
         x = self.time
         y = self.flux
         yerr = self.flux_err
+
+        if init_period is None:
+            # Calculate ls period
+            init_period = LS_rotation()
 
         with pm.Model() as model:
 
