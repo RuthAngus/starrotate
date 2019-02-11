@@ -251,8 +251,8 @@ class RotationModel(object):
             sampler = xo.PyMC3Sampler()
             with model:
                 sampler.tune(tune=2000, start=map_soln,
-                            step_kwargs=dict(target_accept=0.9))
-                trace = sampler.sample(draws=2000)
+                            step_kwargs=dict(target_accept=0.9), cores=1)
+                trace = sampler.sample(draws=2000, cores=1)
 
             # Save samples
             samples = pm.trace_to_dataframe(trace)
