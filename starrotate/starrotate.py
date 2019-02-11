@@ -192,7 +192,7 @@ class RotationModel(object):
         self.acf_period = acf_period
         return acf_period
 
-    def GP_rotation(self):
+    def GP_rotation(self, init_period):
         x = self.time
         y = self.flux
         yerr = self.flux_err
@@ -207,7 +207,7 @@ class RotationModel(object):
 
             # The parameters of the RotationTerm kernel
             logamp = pm.Normal("logamp", mu=np.log(np.var(y)), sd=5.0)
-            logperiod = pm.Normal("logperiod", mu=np.log(self.ls_period),
+            logperiod = pm.Normal("logperiod", mu=np.log(init_period),
                                   sd=5.0)
             logQ0 = pm.Normal("logQ0", mu=1.0, sd=10.0)
             logdeltaQ = pm.Normal("logdeltaQ", mu=2.0, sd=10.0)
