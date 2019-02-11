@@ -74,17 +74,24 @@ def load_and_normalize(fname):
     return x, y, yerr
 
 
-def transit_mask(time, t0, dur, porb):
-    if t0 is None or dur is None or porb is None:
+def transit_mask(time, _t0, _dur, porb):
+    if _t0 is None or _dur is None or porb is None:
         return None
 
     # How many transits?
-    ntransit = int((time[-1] - time[0])//porb)
+    # ntransit = int((time[-1] - time[0])//porb)
+    # transit = (t0 - .5*dur < time) * (time < t0 + .5*dur)
+    # for i in range(ntransit):
+    #     transit += (t0 + i*porb - .5*dur < time) * (time < t0 + i*porb +
+    #                                                 .5*dur)
 
-    transit = (t0 - .5*dur < time) * (time < t0 + .5*dur)
-    for i in range(ntransit):
-        transit += (t0 + i*porb - .5*dur < time) * (time < t0 + i*porb + .5*dur)
-    return transit
+    t0 = float(_t0) % porb
+    dur = float(_dur) / 24.
+    m = np.abs((time - t0 + .5*porb) % porb - .5*porb) < 1.5*dur
+    # y[m] = np.nan
+
+    return m
+    # return transit
 
 
 def dan_acf(x, axis=0, fast=False):
