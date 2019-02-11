@@ -199,7 +199,7 @@ class RotationModel(object):
 
         if init_period is None:
             # Calculate ls period
-            init_period = LS_rotation()
+            init_period = self.LS_rotation()
 
         with pm.Model() as model:
 
