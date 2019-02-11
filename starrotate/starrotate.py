@@ -29,37 +29,35 @@ class RotationModel(object):
         self.plot = plot
         self.plot_path = plot_path
 
-    def measure_rotation_period(self, t0=None, dur=None, porb=None, zoom=100):
+    def process_light_curve(self, t0=None, dur=None, porb=None, zoom=100):
 
         self.t0, self.dur, self.porb = t0, dur, porb
 
         # Plot the light curve
         plt.figure(figsize=(20, 5))
         plt.plot(self.raw_time, self.raw_flux, "k.", ms=.5);
-        # plt.xlabel("$\mathrm{Time~[days]}$")
-        # plt.ylabel("$\mathrm{Relative~Flux}$");
         plt.xlabel("Time [days]")
         plt.ylabel("Relative Flux");
-        plt.subplots_adjust(bottom=.15)
+        plt.subplots_adjust(bottom=.2)
         plt.savefig("{0}/{1}_full_lightcurve".format(self.plot_path,
                                                      self.starname))
         plt.close()
 
         # Mask the transits and plot masked light curve
-        time, flux, flux_err = self.raw_time, self.raw_flux, self.raw_flux_err
         if t0 is not None and dur is not None and porb is not None:
             transit = self.transit_mask()
             time, flux, flux_err = self.raw_time[~transit], \
                 self.raw_flux[~transit], self.raw_flux_err[~transit]
 
             if self.plot:
+                ms = 5
                 plt.figure(figsize=(20, 5))
-                plt.plot(time, flux, "k.", ms=.5);
-                # plt.xlabel("$\mathrm{Time~[days]}$")
-                # plt.ylabel("$\mathrm{Relative~Flux}$");
+                plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=ms,
+                         zorder=0);
+                plt.plot(time, flux, ".", color="C0", ms=ms, zorder=1);
                 plt.xlabel("Time [days]")
                 plt.ylabel("Relative Flux");
-                plt.subplots_adjust(bottom=.15)
+                plt.subplots_adjust(bottom=.2)
                 plt.savefig("{0}/{1}_masked_lightcurve".format(self.plot_path,
                                                                self.starname))
                 plt.close()
@@ -69,7 +67,9 @@ class RotationModel(object):
         # Plot a zoom in.
         if self.plot:
             plt.figure(figsize=(20, 5))
-            plt.plot(self.time, self.flux, "k.", ms=2);
+            plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=2,
+                     zorder=0);
+            plt.plot(self.time, self.flux, ".", color="C0", ms=2, zorder=1);
             # plt.xlabel("$\mathrm{Time~[days]}$")
             # plt.ylabel("$\mathrm{Relative~Flux}$");
             plt.xlabel("Time [days]")
@@ -84,22 +84,27 @@ class RotationModel(object):
                                 "flux_err": self.flux_err}))
         lc.to_csv("{0}/{1}_lc_data.csv".format(self.plot_path, self.starname))
 
-        # Calculate the rotation period.
-        ls_period = self.LS_rotation()
-        acf_period = self.ACF_rotation()
-        gp_period = self.GP_rotation()
-        return gp_period, ls_period, acf_period
+#         # Calculate the rotation period.
+#         ls_period = self.LS_rotation()
+#         acf_period = self.ACF_rotation()
+#         gp_period = self.GP_rotation()
+#         return gp_period, ls_period, acf_period
 
     def transit_mask(self):
-        # How many transits?
-        ntransit = int((self.raw_time[-1] - self.raw_time[0])//self.porb)
+        # # How many transits?
+        # ntransit = int((self.raw_time[-1] - self.raw_time[0])//self.porb)
+        # transit = (self.t0 - .5*self.dur < self.raw_time) * \
+        #     (self.raw_time < self.t0 + .5*self.dur)
+        # for i in range(ntransit):
+        #     transit += (self.t0 + i*self.porb - .5*self.dur < self.raw_time)\
+        #         * (self.raw_time < self.t0 + i*self.porb + .5*self.dur)
 
-        transit = (self.t0 - .5*self.dur < self.raw_time) * \
-            (self.raw_time < self.t0 + .5*self.dur)
-        for i in range(ntransit):
-            transit += (self.t0 + i*self.porb - .5*self.dur < self.raw_time)\
-                * (self.raw_time < self.t0 + i*self.porb + .5*self.dur)
-        return transit
+        t0 = float(self.t0) % self.porb
+        dur = float(self.dur) / 24.
+
+        m = np.abs((self.raw_time - t0 + 0.5*self.porb) \
+                   % self.porb - 0.5*self.porb) < 1.5*dur
+        return m
 
     def fold_plot(self, period, method):
         x_fold = ((self.time - self.time[0]) % period)/period
