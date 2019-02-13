@@ -19,178 +19,92 @@ plt.rcParams.update(plotpar)
 
 class RotationModel(object):
 
-    def __init__(self, raw_time, raw_flux, raw_flux_err, starname, plot=True,
-                 plot_path="."):
+    def __init__(self, time, flux, flux_err, t0=None,
+                 duration=None, porb=None):
 
-        self.raw_time = raw_time
-        self.raw_flux = raw_flux
-        self.raw_flux_err = raw_flux_err
-        self.starname = starname
-        self.plot = plot
-        self.plot_path = plot_path
+        self.time = time
+        self.flux = flux
+        self.flux_err = flux_err
+        self.t0, self.duration, self.porb = t0, duration, porb
 
-    def process_light_curve(self, t0=None, dur=None, porb=None, zoom=100):
+    def plot_lc_zoom(self, zoom=100):
+        plt.figure(figsize=(20, 5))
+        plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=2,
+                    zorder=0);
+        plt.xlabel("Time [days]")
+        plt.ylabel("Relative Flux");
+        plt.xlim(self.time[0], self.time[0] + zoom)
+        plt.subplots_adjust(bottom=.15)
 
-        self.t0, self.dur, self.porb = t0, dur, porb
-
+    def plot_lc(self):
         # Plot the light curve
         plt.figure(figsize=(20, 5))
         plt.plot(self.raw_time, self.raw_flux, "k.", ms=.5);
         plt.xlabel("Time [days]")
         plt.ylabel("Relative Flux");
         plt.subplots_adjust(bottom=.2)
-        plt.savefig("{0}/{1}_full_lightcurve".format(self.plot_path,
-                                                     self.starname))
-        plt.close()
 
-        # Mask the transits and plot masked light curve
-        if t0 is not None and dur is not None and porb is not None:
-            transit = self.transit_mask()
-            time, flux, flux_err = self.raw_time[~transit], \
-                self.raw_flux[~transit], self.raw_flux_err[~transit]
+    def plot_transit_mask(self):
+        ms = 5
+        plt.figure(figsize=(20, 5))
+        plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=ms,
+                    zorder=0);
+        plt.plot(self.time, self.flux, ".", color="C0", ms=ms, zorder=1);
+        plt.xlabel("Time [days]")
+        plt.ylabel("Relative Flux");
+        plt.subplots_adjust(bottom=.2)
 
-            if self.plot:
-                ms = 5
-                plt.figure(figsize=(20, 5))
-                plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=ms,
-                         zorder=0);
-                plt.plot(time, flux, ".", color="C0", ms=ms, zorder=1);
-                plt.xlabel("Time [days]")
-                plt.ylabel("Relative Flux");
-                plt.subplots_adjust(bottom=.2)
-                plt.savefig("{0}/{1}_masked_lightcurve".format(self.plot_path,
-                                                               self.starname))
-                plt.close()
-
-        self.time, self.flux, self.flux_err = time, flux, flux_err
-
-        # Plot a zoom in.
-        if self.plot:
-            plt.figure(figsize=(20, 5))
-            plt.plot(self.raw_time, self.raw_flux, ".", color="C1", ms=2,
-                     zorder=0);
-            plt.plot(self.time, self.flux, ".", color="C0", ms=2, zorder=1);
-            # plt.xlabel("$\mathrm{Time~[days]}$")
-            # plt.ylabel("$\mathrm{Relative~Flux}$");
-            plt.xlabel("Time [days]")
-            plt.ylabel("Relative Flux");
-            plt.xlim(self.time[0], self.time[0] + zoom)
-            plt.subplots_adjust(bottom=.15)
-            plt.savefig("{0}/{1}_zoom".format(self.plot_path, self.starname))
-            plt.close()
-
-        # Save the processed light curve data.
-        lc = pd.DataFrame(dict({"time": self.time, "flux": self.flux,
-                                "flux_err": self.flux_err}))
-        lc.to_csv("{0}/{1}_lc_data.csv".format(self.plot_path, self.starname))
-
-#         # Calculate the rotation period.
-#         ls_period = self.LS_rotation()
-#         acf_period = self.ACF_rotation()
-#         gp_period = self.GP_rotation()
-#         return gp_period, ls_period, acf_period
-
-    def transit_mask(self):
-        # # How many transits?
-        # ntransit = int((self.raw_time[-1] - self.raw_time[0])//self.porb)
-        # transit = (self.t0 - .5*self.dur < self.raw_time) * \
-        #     (self.raw_time < self.t0 + .5*self.dur)
-        # for i in range(ntransit):
-        #     transit += (self.t0 + i*self.porb - .5*self.dur < self.raw_time)\
-        #         * (self.raw_time < self.t0 + i*self.porb + .5*self.dur)
-
-        t0 = float(self.t0) % self.porb
-        dur = float(self.dur) / 24.
+    def transit_mask(self, _t0, _duration, porb):
+        t0 = float(_t0) % porb
+        duration = float(_duration) / 24.
 
         m = np.abs((self.raw_time - t0 + 0.5*self.porb) \
-                   % self.porb - 0.5*self.porb) < 1.5*dur
+                   % self.porb - 0.5*self.porb) < 1.5*duration
         return m
 
-    def fold_plot(self, period, method):
-        x_fold = ((self.time - self.time[0]) % period)/period
-        plt.figure(figsize=(12, 9))
-        plt.plot(x_fold, self.flux, ".k", ms=1);
-        plt.ylim(-np.std(self.flux)*3, np.std(self.flux)*3)
-        # plt.xlabel("$\mathrm{Phase}$")
-        # plt.ylabel("$\mathrm{Normalized~Flux}$")
-        plt.xlabel("Phase")
-        plt.ylabel("Normalized Flux")
-
-        bins = np.linspace(0, 1, 20)
-        denom, _ = np.histogram(x_fold, bins)
-        num, _ = np.histogram(x_fold, bins, weights=self.flux)
-        denom[num == 0] = 1.0
-        plt.plot(0.5*(bins[1:] + bins[:-1]), num / denom, ".-", color="C1",
-                ms=10);
-        plt.subplots_adjust(left=.15, bottom=.15)
-        plt.savefig("{0}/{1}_{2}_fold".format(self.plot_path, self.starname,
-                                              method))
-        plt.close()
-
     def LS_rotation(self):
+
+        assert len(self.flux) == sum(np.isfinite(self.flux)), "Remove NaNs" \
+            " from your flux array before trying to compute a periodogram."
 
         # Calculate a LS period
         results = xo.estimators.lomb_scargle_estimator(
             self.time, self.flux, max_peaks=1, min_period=1.0,
-            max_period=10.0, samples_per_peak=50)
+            max_period=30.0, samples_per_peak=50)
 
-        # Make a plot of the periodogram.
-        if self.plot:
-            plt.figure(figsize=(16, 9))
-            peak = results["peaks"][0]
-            freq, power = results["periodogram"]
-            plt.plot(-np.log10(freq), power, "k", zorder=0)
-            plt.axvline(np.log10(peak["period"]), color="C1", lw=4, alpha=0.5,
-                        zorder=1)
-            plt.xlim((-np.log10(freq)).min(), (-np.log10(freq)).max())
-            plt.yticks([])
-            # plt.xlabel("$\log_{10}(\mathrm{Period [days]}$)")
-            # plt.ylabel("$\mathrm{Power}$");
-            plt.xlabel("log10(Period [days])")
-            plt.ylabel("Power");
-            plt.subplots_adjust(left=.15, bottom=.15)
-            plt.savefig("{0}/{1}_pgram".format(self.plot_path, self.starname))
-            plt.close()
-
-            # Plot the light curve folded on this period.
-            self.fold_plot(peak["period"], "LS")
-
-        # Save the periodogram data.
-        pgram = pd.DataFrame(dict({"freq": freq, "power": power, "period":
-                                   peak["period"]}))
-        pgram.to_csv("{0}/{1}_pgram_data.csv".format(self.plot_path,
-                                                     self.starname))
-
+        self.freq, self.power = results["periodogram"]
+        peak = results["peaks"][0]
         self.ls_period = peak["period"]
         return peak["period"]
+
+    def pgram_plot(self):
+        # Make a plot of the periodogram.
+        plt.figure(figsize=(16, 9))
+        plt.plot(-np.log10(self.freq), self.power, "k", zorder=0)
+        plt.axvline(np.log10(self.ls_period), color="C1", lw=4, alpha=0.5,
+                    zorder=1)
+        plt.xlim((-np.log10(self.freq)).min(), (-np.log10(self.freq)).max())
+        plt.yticks([])
+        plt.xlabel("log10(Period [days])")
+        plt.ylabel("Power");
+        plt.subplots_adjust(left=.15, bottom=.15)
 
     def ACF_rotation(self):
         lags, acf, acf_period = simple_acf(self.time, self.flux)
 
-        if self.plot:
-            plt.figure(figsize=(16, 9))
-            plt.plot(lags, acf, "k")
-            plt.axvline(acf_period, color="C1")
-            # plt.xlabel("$\mathrm{Period~[days]}$")
-            # plt.ylabel("$\mathrm{Correlation}$")
-            plt.xlabel("Period [days]")
-            plt.ylabel("Correlation")
-            plt.xlim(0, 20)
-            plt.subplots_adjust(left=.15, bottom=.15)
-            plt.savefig("{0}/{1}_acf".format(self.plot_path, self.starname))
-            plt.close()
-
-            # Plot the folded light curve
-            self.fold_plot(acf_period, method="ACF")
-
-        # Save the ACF data.
-        ACF = pd.DataFrame(dict({"lags": lags, "acf": acf, "period":
-                                 acf_period}))
-        ACF.to_csv("{0}/{1}_acf_data.csv".format(self.plot_path,
-                                                 self.starname))
-
+        self.lags = lags
+        self.acf = acf
         self.acf_period = acf_period
         return acf_period
+
+    def acf_plot(self):
+        plt.figure(figsize=(16, 9))
+        plt.plot(self.lags, self.acf, "k")
+        plt.axvline(self.acf_period, color="C1")
+        plt.xlabel("Period [days]")
+        plt.ylabel("Correlation")
+        plt.xlim(0, max(self.lags))
+        plt.subplots_adjust(left=.15, bottom=.15)
 
     def GP_rotation(self, init_period=None):
         x = self.time
@@ -238,7 +152,7 @@ class RotationModel(object):
             # pm.Deterministic("pred", gp.predict())
 
             # Optimize to find the maximum a posteriori parameters
-            map_soln = pm.find_MAP(start=model.test_point)
+            self.map_soln = pm.find_MAP(start=model.test_point)
 
             # Plot the MAP fit.
             # if self.plot:
@@ -265,14 +179,12 @@ class RotationModel(object):
 
             # Save samples
             samples = pm.trace_to_dataframe(trace)
-            samples.to_hdf("{0}/{1}_samples.h5".format(self.plot_path,
-                                                       self.starname),
-                           "trace")
+            self.samples = samples
 
-            period_samples = trace["period"]
-            gp_period = np.median(period_samples)
-            lower = np.percentile(period_samples, 16)
-            upper = np.percentile(period_samples, 84)
+            self.period_samples = trace["period"]
+            gp_period = np.median(self.period_samples)
+            lower = np.percentile(self.period_samples, 16)
+            upper = np.percentile(self.period_samples, 84)
             errm = gp_period - lower
             errp = upper - gp_period
             logQ = np.median(trace["logQ0"])
@@ -281,25 +193,21 @@ class RotationModel(object):
             Qerrp = upperQ - logQ
             Qerrm = logQ - lowerQ
 
-            # Plot the posterior.
-            if self.plot:
-                plt.hist(period_samples, 30, histtype="step", color="k")
-                plt.axvline(gp_period)
-                plt.yticks([])
-                # plt.xlabel("$\mathrm{Rotation~period~[days]}$")
-                # plt.ylabel("$\mathrm{Posterior~density}$");
-                plt.xlabel("Rotation period [days]")
-                plt.ylabel("Posterior density");
-                plt.axvline(lower, ls="--", color="C1");
-                plt.axvline(upper, ls="--", color="C1");
-                plt.xlim(0, 50);
-
-                # Plot the folded light curve
-                self.fold_plot(gp_period, method="GP")
-
         self.gp_period = gp_period
         self.errp, self.errm = errp, errm
         self.logQ = logQ
         self.Qerrp, self.Qerrm = Qerrp, Qerrm
 
         return gp_period, errp, errm, logQ, Qerrp, Qerrm
+
+    def plot_posterior(self):
+
+        # Plot the posterior.
+        plt.hist(self.period_samples, 30, histtype="step", color="k")
+        plt.axvline(self.gp_period)
+        plt.yticks([])
+        plt.xlabel("Rotation period [days]")
+        plt.ylabel("Posterior density");
+        plt.axvline(lower, ls="--", color="C1");
+        plt.axvline(upper, ls="--", color="C1");
+        plt.xlim(0, 50);
