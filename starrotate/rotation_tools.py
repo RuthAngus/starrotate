@@ -17,6 +17,21 @@ plotpar = {'axes.labelsize': 25,
            'text.usetex': True}
 plt.rcParams.update(plotpar)
 
+def transit_mask(self, t0, duration, porb):
+    """
+    Mask out transits
+
+    Args:
+        t0 (float): The reference time of transit. For Kepler data you may
+            need to subtract 2454833.0 off this number.
+        duration (float): The transit duration.
+        porb (float): The planet's orbital period.
+    """
+    _t0 = float(t0) % porb
+    _duration = float(duration) / 24.
+    m = np.abs((self.time - _t0 + 0.5*self.porb) \
+                % self.porb - 0.5*self.porb) < 1.5*_duration
+    return m
 
 def download_light_curves(KID, download_path, lcpath):
     client = kplr.API(data_root=download_path)
@@ -74,38 +89,21 @@ def load_and_normalize(fname):
     return x, y, yerr
 
 
-def transit_mask(time, _t0, _dur, porb):
-    if _t0 is None or _dur is None or porb is None:
-        return None
-
-    # How many transits?
-    # ntransit = int((time[-1] - time[0])//porb)
-    # transit = (t0 - .5*dur < time) * (time < t0 + .5*dur)
-    # for i in range(ntransit):
-    #     transit += (t0 + i*porb - .5*dur < time) * (time < t0 + i*porb +
-    #                                                 .5*dur)
-
-    t0 = float(_t0) % porb
-    dur = float(_dur) / 24.
-    m = np.abs((time - t0 + .5*porb) % porb - .5*porb) < 1.5*dur
-    # y[m] = np.nan
-
-    return m
-    # return transit
-
-
 def dan_acf(x, axis=0, fast=False):
     """
     Estimate the autocorrelation function of a time series using the FFT.
-    :param x:
-        The time series. If multidimensional, set the time axis using the
-        ``axis`` keyword argument and the function will be computed for every
-        other axis.
-    :param axis: (optional)
-        The time axis of ``x``. Assumed to be the first axis if not specified.
-    :param fast: (optional)
-        If ``True``, only use the largest ``2^n`` entries for efficiency.
-        (default: False)
+
+    Args:
+        x (array): The time series. If multidimensional, set the time axis
+            using the ``axis`` keyword argument and the function will be
+            computed for every other axis.
+        axis (Optional[int]): The time axis of ``x``. Assumed to be the first
+            axis if not specified.
+        fast (Optional[bool]): If ``True``, only use the largest ``2^n``
+            entries for efficiency. (default: False)
+
+    Returns:
+        acf (array): The acf array.
     """
     x = np.atleast_1d(x)
     m = [slice(None), ] * len(x.shape)
@@ -133,7 +131,24 @@ def interp(x_gaps, y_gaps, interval):
     return x, f(x)
 
 
-def simple_acf(x_gaps, y_gaps, interval=0.02043365):
+def simple_acf(x_gaps, y_gaps, interval):
+    """
+    Compute an autocorrelation function and a period.
+
+    Applies interpolation, smoothing and peak detection to estimate a
+    rotation period.
+
+    Args:
+        x_gaps (array): The time array.
+        y_gaps (array): The flux array.
+        interval (Optional[float]): The time interval between successive
+            observations. The default is Kepler cadence.
+
+    Returns:
+        lags (array): The array of lag times in days.
+        acf (array): The autocorrelation function.
+        period (float): The period estimated from the highest peak in the ACF.
+    """
 
     # First of all: interpolate to an evenly spaced grid
     x, y = interp(x_gaps, y_gaps, interval)
