@@ -10,6 +10,8 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 import scipy.interpolate as spi
 import kplr
+from astropy.stats import BoxLeastSquares
+import scipy.signal as sps
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
@@ -34,6 +36,22 @@ def transit_mask(self, t0, duration, porb):
     return m
 
 def download_light_curves(KID, download_path, lcpath):
+    """
+    Download Kepler light curves
+
+    Args:
+        KID (int): The Kepler ID.
+        download_path (str): The path to where the light curves will be
+            downloaded.
+        lcpath (str): The path to where the light curves are stored (same as
+            download_path with /.kplr/data/lightcurves/<KID>, where KID is a 9
+            digit number.)
+
+    Returns:
+        time (array): The time array.
+        flux (array): The flux array.
+        flux_err (array): The flux uncertainty array.
+    """
     client = kplr.API(data_root=download_path)
     star = client.star(str(int(KID)).zfill(9))
     star.get_light_curves(fetch=True, short_cadence=False);
@@ -44,11 +62,20 @@ def download_light_curves(KID, download_path, lcpath):
 def load_kepler_data(LC_DIR):
     """
     Load data and join quarters together.
-    Returns the time, flux and flux_err arrays.
+
+    Args:
+        LC_DIR (str): The path to where the light curves are stored (will
+            end in /.kplr/data/lightcurves/<KID>, where KID is a 9 digit
+            number.)
+
+    Returns:
+        time (array): The time array.
+        flux (array): The flux array.
+        flux_err (array): The flux uncertainty array.
     """
 
     # The names of the light curve fits files.
-    fnames = sorted(glob.glob(os.path.join(LC_DIR, "*fits")))
+    fnames = sorted(glob.glob(os.path.join(LC_DIR, "*llc*fits")))
 
     # load and median normalize the first quarter
     time, flux, flux_err = load_and_normalize(fnames[0])
@@ -66,6 +93,14 @@ def load_kepler_data(LC_DIR):
 def load_and_normalize(fname):
     """
     Load one quarter, remove bad points and median normalize it.
+
+    Args:
+        fname (str): The path to and name of a light curve fits file.
+
+    Returns:
+        x (array): The time array.
+        y (array): The flux array.
+        y_err (array): The flux uncertainty array.
     """
 
     # Load the data and pull out the time and flux arrays.
@@ -126,6 +161,18 @@ def dan_acf(x, axis=0, fast=False):
 
 
 def interp(x_gaps, y_gaps, interval):
+    """
+    Interpolate the light curve
+
+    Args:
+        x_gaps (array): The time array with gaps.
+        y_gaps (array): The flux array with gaps.
+        interval (float): The grid to interpolate to.
+
+    Returns:
+        time (array): The interpolated time array.
+        flux (array): The interpolated flux array.
+    """
     f = spi.interp1d(x_gaps, y_gaps, kind="zero")
     x = np.arange(x_gaps[0], x_gaps[-1], interval)
     return x, f(x)
@@ -202,3 +249,131 @@ def simple_acf(x_gaps, y_gaps, interval):
         period = 0.
 
     return lags, acf_smooth, period
+
+def find_and_mask_transits(time, flux, flux_err, periods, durations,
+                           nplanets=1):
+    """
+    Iteratively find and mask transits in the flattened light curve.
+
+    Args:
+        time (array): The time array.
+        flux (array): The flux array. You'll get the best results
+            if this is flattened.
+        flux_err (array): The array of flux uncertainties.
+        periods (array): The array of periods to search over for BLS.
+            For example, periods = np.linspace(0.5, 20, 10)
+        durations (array): The array of durations to search over for BLS.
+            For example, durations = np.linspace(0.05, 0.2, 10)
+        nplanets (Optional[int]): The number of planets you'd like to search for.
+            This function will interatively find and remove nplanets. Default is 1.
+
+    Returns:
+        transit_masks (list): a list of masks that correspond to the in
+            transit points of each light curve. To mask out transits do
+            time[~transit_masks[index]], etc.
+    """
+
+    cum_transit = np.ones(len(time), dtype=bool)
+    _time, _flux, _flux_err = time*1, flux*1, flux_err*1
+
+    t0s, durs, porbs = [np.zeros(nplanets) for i in range(3)]
+    transit_masks = []
+    for i in range(nplanets):
+        bls = BoxLeastSquares(t=_time, y=_flux, dy=_flux_err)
+        bls.power(periods, durations)
+
+        periods = bls.autoperiod(durations, minimum_n_transit=3, frequency_factor=5.0)
+        results = bls.autopower(durations, frequency_factor=5.0)
+
+        # Find the period of the peak
+        period = results.period[np.argmax(results.power)]
+
+        # Extract the parameters of the best-fit model
+        index = np.argmax(results.power)
+        porbs[i] = results.period[index]
+        t0s[i] = results.transit_time[index]
+        durs[i] = results.duration[index]
+
+#         # Plot the periodogram
+#         fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+#         ax.plot(results.period, results.power, "k", lw=0.5)
+#         ax.set_xlim(results.period.min(), results.period.max())
+#         ax.set_xlabel("period [days]")
+#         ax.set_ylabel("log likelihood")
+
+#         # Highlight the harmonics of the peak period
+#         ax.axvline(period, alpha=0.4, lw=4)
+#         for n in range(2, 10):
+#             ax.axvline(n*period, alpha=0.4, lw=1, linestyle="dashed")
+#             ax.axvline(period / n, alpha=0.4, lw=1, linestyle="dashed")
+#         plt.show()
+
+#         plt.plot(_time, _flux, ".")
+#         plt.xlim(1355, 1360)
+
+        in_transit = bls.transit_mask(_time, porbs[i], 2*durs[i], t0s[i])
+        transit_masks.append(in_transit)
+        _time, _flux, _flux_err = _time[~in_transit], _flux[~in_transit], \
+            _flux_err[~in_transit]
+
+    return transit_masks, t0s, durs, porbs
+
+def apply_masks(time, flux, flux_err, transit_masks):
+    """
+    Apply transit masks to the unflattened light curve.
+
+    Args:
+        time (array): The time array.
+        flux (array): The flux array
+        flux_err (array): The flux_err array.
+        transit_masks (list): A list of transit masks.
+
+    Returns:
+        masked_time (array): The masked time array.
+        masked_flux (array): The masked flux array.
+        masked_flux_err (array): The masked flux_err array.
+
+    """
+    masked_time = time*1
+    masked_flux, masked_flux_err = flux*1, flux_err*1
+    for i in range(len(transit_masks)):
+        masked_time = masked_time[~transit_masks[i]]
+        masked_flux = masked_flux[~transit_masks[i]]
+        masked_flux_err = masked_flux_err[~transit_masks[i]]
+
+    return masked_time, masked_flux, masked_flux_err
+
+
+def butter_bandpass_filter(flux, lowcut, fs, order=3):
+    """
+    Apply a Butterworth high-pass filter.
+
+    Args:
+        flux (array): The flux array.
+        lowcut (float): The frequency cut off.
+        fs (array): The frequency array.
+        order (Optional[int]): The order of the Butterworth filter. Default
+            is 3.
+    """
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    b, a = sps.butter(order, lowcut, btype='highpass')
+    y = sps.lfilter(b, a, flux)
+    return y
+
+
+# def sigma_clip(time, flux, sigma=3, iterations=5, npoints=50):
+#     """
+#     Sigma clip with a running median.
+
+#     Args:
+#         time (array): The time array.
+#         flux (array): The flux array.
+#         sigma (Optional[float]): The number of sigma to clip.
+#         iterations (Optional[int]): The number of iterations.
+#         npoints (Optional[int]): The number of points to use in the running
+#             median window.
+#     """
+
+#     # Calculate a running median.
+#     for i in range(len(time)//npoints):
