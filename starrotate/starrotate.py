@@ -10,6 +10,8 @@ import theano.tensor as tt
 import matplotlib.pyplot as plt
 import pandas as pd
 import astropy.stats as ass
+from .phase_dispersion_minimization import phi, calc_phase
+from tqdm import tqdm, trange
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
@@ -152,6 +154,30 @@ class RotationModel(object):
         plt.xlim(0, max(self.lags))
         plt.subplots_adjust(left=.15, bottom=.15)
 
+    def PDM(self, period_grid, nbins=10):
+        """
+        Calculate the optimum period from phase dispersion minimization.
+
+        Args:
+            period_grid (array): The period grid.
+            nbins (array): The number of bins to use when calculating phase
+                dispersion.
+
+        Returns:
+            phis (array): The array of phi statistics
+
+        """
+
+        nperiods = len(period_grid)
+        phis = np.zeros(nperiods)
+        for i in trange(len(period_grid)):
+            phis[i] = phi(nbins, period_grid[i], self.time, self.flux)
+
+        # Find period with the lowest Phi
+        ind = np.argmin(phis)
+        self.pgm_period = period_grid[ind]
+        return phis, period_grid[ind]
+
     def GP_rotation(self, init_period=None, tune=2000, draws=2000,
                     prediction=True, cores=None):
         """
@@ -187,8 +213,6 @@ class RotationModel(object):
         if init_period is None:
             # Calculate ls period
             init_period = self.LS_rotation()
-            print("No initial period provided, initializing with the LS " \
-                  "period, {0:.2f} days.".format(self.ls_period))
 
         with pm.Model() as model:
 
@@ -228,7 +252,10 @@ class RotationModel(object):
                 pm.Deterministic("pred", gp.predict())
 
             # Optimize to find the maximum a posteriori parameters
-            self.map_soln = pm.find_MAP(start=model.test_point)
+            self.map_soln = xo.optimize(start=model.test_point)
+            # print(self.map_soln)
+            # print(xo.utils.eval_in_model(model.logpt, self.map_soln))
+            # assert 0
 
             # Sample from the posterior
             np.random.seed(42)
@@ -280,7 +307,7 @@ class RotationModel(object):
         plt.legend(fontsize=20)
         self.prediction = np.median(self.trace["pred"], axis=0)
 
-    def plot_posterior(self, nbins=30, cutoff=50.):
+    def plot_posterior(self, nbins=30):
         """
         Plot the posterior probability density function for rotation period.
 
@@ -288,7 +315,6 @@ class RotationModel(object):
             nbins (Optional[int]): The number of histogram bins. Default is 30
             cutoff (Optional[float]): The maximum sample value to plot.
         """
-        samps = self.period_samples[self.period_samples < cutoff]
         plt.hist(self.period_samples, nbins, histtype="step", color="k")
         plt.axvline(self.gp_period)
         plt.yticks([])
@@ -296,4 +322,3 @@ class RotationModel(object):
         plt.ylabel("Posterior density");
         plt.axvline(self.gp_period - self.errm, ls="--", color="C1");
         plt.axvline(self.gp_period + self.errp, ls="--", color="C1");
-        plt.xlim(0, cutoff);
