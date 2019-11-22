@@ -9,7 +9,7 @@ import pymc3 as pm
 import theano.tensor as tt
 import matplotlib.pyplot as plt
 import pandas as pd
-import astropy.stats as ass
+import astropy.timeseries as ass
 from .phase_dispersion_minimization import phi, calc_phase
 from tqdm import tqdm, trange
 
