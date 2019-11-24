@@ -368,18 +368,40 @@ def butter_bandpass_filter(flux, lowcut, fs, order=3):
     return y
 
 
-# def sigma_clip(time, flux, sigma=3, iterations=5, npoints=50):
-#     """
-#     Sigma clip with a running median.
+def get_peak_statistics(x, y, sort_by="height"):
+    """
+    Get the positions and height of peaks in an array.
 
-#     Args:
-#         time (array): The time array.
-#         flux (array): The flux array.
-#         sigma (Optional[float]): The number of sigma to clip.
-#         iterations (Optional[int]): The number of iterations.
-#         npoints (Optional[int]): The number of points to use in the running
-#             median window.
-#     """
+    Args:
+        x (array): the x array (e.g. period or lag).
+        y (array): the y array (e.g. power or ACF).
+        sort_by (str): The way to sort the peak array. if "height", sort peaks
+            in order of height, if "position", sort peaks in order of
+            x-position.
 
-#     # Calculate a running median.
-#     for i in range(len(time)//npoints):
+    Returns:
+        x_peaks (array): the peak x-positions in descending height order, or
+            ascending x-position order.
+        y_peaks (array): the peak heights in descending height order, or
+            ascending x-position order.
+    """
+
+    # Array of peak indices
+    peaks = np.array([i for i in range(1, len(y)-1) if y[i-1] <
+                      y[i] and y[i+1] < y[i]])
+
+    # extract peak values
+    x_peaks = x[peaks]
+    y_peaks = y[peaks]
+
+    # sort by height
+    if sort_by == "height":
+        inds = np.argsort(y_peaks)
+        x_peaks, y_peaks = x_peaks[inds][::-1], y_peaks[inds][::-1]
+
+    # sort by position
+    elif sort_by == "position":
+        inds = np.argsort(x_peaks)
+        x_peaks, y_peaks = x_peaks[inds], y_peaks[inds]
+
+    return x_peaks, y_peaks
