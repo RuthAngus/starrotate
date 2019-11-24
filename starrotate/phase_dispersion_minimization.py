@@ -28,12 +28,12 @@ def s2(nj, sj2, M):
     Stellingwerf, 1978).
 
     Args:
-        nj (array): Number of data points per sample (j = 1-M).
-        sj2 (array): Variance of sample (j = 1-M).
-        M (int): Number of samples.
+        nj (array): Number of data points per sample/bin (j = 1 to M).
+        sj2 (array): Variance of each sample/bin (j = 1 to M).
+        M (int): Number of samples/bins.
 
     Returns:
-        The overall variance of the samples.
+        The overall variance of the samples/bins.
 
     """
 
@@ -77,14 +77,14 @@ def phase_bins(nbins, phase, x):
     min_phase, max_phase = 0, 1
     phase_bins = np.linspace(min_phase, max_phase, nbins + 1)
     x_binned, phase_binned = [], []
-    x_means, Ns = [np.empty(nbins) for i in range(2)]
+    x_means, Ns, per_bin_variances = [np.empty(nbins) for i in range(3)]
     for j in range(nbins):
         m = (phase_bins[j] < phase) * (phase < phase_bins[j + 1])
         Ns[j] = len(x[m])
         x_means[j] = np.mean(x[m])
         x_binned.append(x[m])
         phase_binned.append(phase[m])
-        per_bin_variances = sj2(x[m], x_means[j], Ns[j])
+        per_bin_variances[j] = sj2(x[m], x_means[j], Ns[j])
 
     return x_means, phase_bins, \
         Ns, per_bin_variances, \
